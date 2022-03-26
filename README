@@ -1,2 +1,7 @@
 path to formula:
   /opt/homebrew/Library/Taps/homebrew/homebrew-core/Formula/zion.rb
+
+
+
+run this before pushing:
+  brew install --build-from-source --verbose --debug ./zion.rb
