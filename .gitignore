@@ -1,2 +1,7 @@
 .*.swp
 .*.swo
+*.go
+*.mod
+*.sum
+zion-gateway
+README.md

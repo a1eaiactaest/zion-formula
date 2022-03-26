@@ -4,19 +4,20 @@
 class Zion < Formula
   desc ""
   homepage "http://zion244k2d5snr6uao5mxukpacqbr4z25oaji5kegjw43ypd72pri3qd.onion/"
-  url "zion"
-  version ""
-  sha256 ""
-  license ""
+  url "http://zion244k2d5snr6uao5mxukpacqbr4z25oaji5kegjw43ypd72pri3qd.onion/gateway.zip"
+  #version ""
+  sha256 "d30a420147346c76641e6ca6843dbcba31b70ff97315235130615d690b23c7ec"
+  license "WTFPL"
 
   # depends_on "cmake" => :build
+  
+  depends_on "go" => :build
+  depends_on "tor" => :build
+  depends_on "unzip" => :build
 
   def install
-    # ENV.deparallelize  # if your formula fails when building in parallel
-    # Remove unrecognized options if warned by configure
-    # https://rubydoc.brew.sh/Formula.html#std_configure_args-instance_method
-    system "./configure", *std_configure_args, "--disable-silent-rules"
-    # system "cmake", "-S", ".", "-B", "build", *std_cmake_args
+    system "./configure"
+    
   end
 
   test do
