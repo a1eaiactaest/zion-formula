@@ -1,8 +1,5 @@
-# Documentation: https://docs.brew.sh/Formula-Cookbook
-#                https://rubydoc.brew.sh/Formula
-# PLEASE REMOVE ALL GENERATED COMMENTS BEFORE SUBMITTING YOUR PULL REQUEST!
 class Zion < Formula
-  version "0.0.1"
+  version "0.0.2"
   desc ""
   homepage "http://zion244k2d5snr6uao5mxukpacqbr4z25oaji5kegjw43ypd72pri3qd.onion/"
   url "https://github.com/a1eaiactaest/zion-formula/releases/download/main/zion-0.0.2.tar.gz"
