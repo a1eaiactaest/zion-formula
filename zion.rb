@@ -5,8 +5,8 @@ class Zion < Formula
   version "0.0.1"
   desc ""
   homepage "http://zion244k2d5snr6uao5mxukpacqbr4z25oaji5kegjw43ypd72pri3qd.onion/"
-  url "https://github.com/a1eaiactaest/zion-formula/releases/download/main/zion-0.0.1.tar.gz"
-  sha256 "67195db8814ae805643692a5e9703c7b9cd3dea16f0c33cbef7f13a7ecf68064"
+  url "https://github.com/a1eaiactaest/zion-formula/releases/download/main/zion-0.0.2.tar.gz"
+  sha256 "11d089faa1332743d4f02e199e244962fb770857fe6e2f577c2fe152f8f94e41"
   license "WTFPL"
   
   depends_on "go" => :build

@@ -3,6 +3,7 @@
 ## Configure script for MacOS Homebrew
 
 URL="http://zion244k2d5snr6uao5mxukpacqbr4z25oaji5kegjw43ypd72pri3qd.onion/gateway.zip"
+SUM="d30a420147346c76641e6ca6843dbcba31b70ff97315235130615d690b23c7ec"
 
 tor --quiet &
 tor_pid=$!
@@ -10,14 +11,18 @@ tor_pid=$!
 echo "Waiting for tor service to start"; sleep 5
 
 curl -s --socks5-hostname 127.0.0.1:9050 $URL > gateway.zip
-
 kill $tor_pid
 
-unzip gateway.zip 
-rm gateway.zip
+NEW_SUM=$(shasum -a 256 gateway.zip | cut -d" " -f 1)
 
-go mod download 
-go build zion-gateway.go
+if [ "$SUM" = "$NEW_SUM" ]; then
+  unzip gateway.zip 
+  rm gateway.zip
 
-
+  go mod download 
+  go build zion-gateway.go
+else
+  echo "checksum failed"
+  exit 1
+fi 
 
