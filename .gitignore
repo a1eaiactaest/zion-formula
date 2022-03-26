@@ -5,3 +5,4 @@
 *.sum
 zion-gateway
 README.md
+.DS_Store
