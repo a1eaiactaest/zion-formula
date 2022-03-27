@@ -21,7 +21,6 @@ class Zion < Formula
   end
 
   test do
-    # executables being tested: `system "#{bin}/program", "do", "something"`.
     pipe_output("#{bin}/zion-gateway -h", 0)
   end
 end
