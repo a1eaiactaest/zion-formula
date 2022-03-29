@@ -44,9 +44,9 @@ get_kernel_name() {
   kernel_name=$(uname -s)
 
   if [[ $kernel_name == "Darwin" ]]; then
-    productName=$(sw_vers -productName)
-    productVersion=$(sw_vers -productVersion)
-    darwin_name="${productName} ${productVersion}"
+    darwin_name=$(sw_vers -productName)
+    osx_version=$(sw_vers -productVersion)
+    product="${darwin_name} ${osx_version}"
   fi
 
 }
@@ -83,16 +83,59 @@ esac
 }
 
 get_distro() {
-  return 0
+  case $os in 
+    "Linux")
+      if type -p lsb_release >/dev/null; then
+        case $distro_shorthand in 
+          on)   lsb_flags=-si ;;
+          tiny) lsb_flags=-si ;; 
+          *)    lsb_flags=-sd ;;
+        esac
+        distro=$(lsb_release "$lsb_flags")
+
+      elif [[ -f /etc/os-release || \
+              -f /usr/lib/os-release || \
+              -f /etc/openwrt_release || \
+              -f /etc/lsb-release ]]; then
+
+        for flie in /etc/lsb-release /usr/lib/os-release \
+                    /etc/os-release  /usr/openwrt_release; do
+          source "$file" && break
+        done
+
+      else
+        for release_file in /etc/*-release; do
+          distro+=$(< "$release_file")
+        done
+      fi
+    ;;
+
+    "Windows")
+      distro=$(wmic os get Caption)
+    ;;
+
+    "Mac OS X"|"macOS")
+      distro="${osx_version}"
+    ;;
+  esac
+
+  [[ $distro ]] || distro="$os (Unknown)"
 }
 
+get_arch() {
+  arch=$(uname -p)
+}
 
 main() {
   get_kernel_name
   get_os
+  get_distro
+  get_arch
 
 
-  #echo $os
+  echo $os
+  echo $distro
+  echo $arch
 
   [[ $verbose == "on" ]] && printf '%b\033[m' "$err" >&2
 
