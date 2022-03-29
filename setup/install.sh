@@ -40,6 +40,10 @@ get_args() {
   done
 }
 
+make_temp_dir() {
+  temp_dir=$(mktemp -t zion-temp -d)
+}
+
 get_kernel_name() {
   kernel_name=$(uname -s)
 
@@ -126,16 +130,70 @@ get_arch() {
   arch=$(uname -p)
 }
 
+install() {
+  make_temp_dir
+
+  # TODO: check if element is alread installed
+  case $os in
+    "Linux") # TODO: test
+      case $distro in
+        "Tails")
+          if !( dpkg -l | grep libsqlcipher0 &> /dev/null); then
+            err "libsqlcipher0 not installed, installing."
+            sudo apt install libsqlcipher0
+          fi
+
+          element_version=$(curl -s https://packages.element.io/debian/pool/main/e/element-desktop/ \
+                            | grep -Eo "_([0-9]).([0-9]|[1-9][0-9]).([0-9]|[1-9][0-9])_" \
+                            | sort -Vr \
+                            | head -n 1)
+          
+          element_filename="element-desktop${element_version}amd64.deb"
+          wget https://packages.riot.im/debian/pool/main/e/element-desktop/$element_filename -P $temp_dir
+          element_download_dir="${temp_dir}/${element_filename}"
+          echo $element_download_dir
+          # TODO: finish installation
+        ;;
+      esac
+    ;;
+
+    "Mac OS X"|"macOS")
+      element_version=$(curl -s https://packages.element.io/desktop/install/macos/ \
+                        | grep -Eo "Element-([0-9]).([0-9]|[1-9][0-9]).([0-9]|[1-9][0-9])" \
+                        | sort -Vr \
+                        | head -n 1)
+      element_filename="${element_version}-universal.dmg" 
+      wget https://packages.element.io/desktop/install/macos/$element_filename -P $temp_dir
+      element_download_dir="${temp_dir}/${element_filename}"
+
+      # mount .dmg file
+      if hdiutil attach $element_download_dir >/dev/null; then
+        mounted="true"
+        element_mount_dir="/Volumes/${element_version}-universal/"
+        cp -R $element_mount_dir/Element.app /Applications/
+      elif
+        mounted="false"
+        err "Couldn't mount ${element_download_dir}. Aborting"
+        exit 1
+      fi
+    ;;
+  esac
+}
+
+cleanup() {
+  rm $element_download_dir
+  if [[ $mounted == "true" ]]; then
+    hdiutil unmount $element_mound_dir
+  fi
+}
+
 main() {
   get_kernel_name
   get_os
   get_distro
   get_arch
 
-
-  echo $os
-  echo $distro
-  echo $arch
+  install
 
   [[ $verbose == "on" ]] && printf '%b\033[m' "$err" >&2
 
