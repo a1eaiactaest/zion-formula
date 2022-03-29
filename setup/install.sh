@@ -34,6 +34,9 @@ get_args() {
       "-vv" | "--VERBOSE") set -x; verbose="on" ;; # print all executed commands (https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html)
       "-h" | "--help") usage ;;
     esac
+
+    shift 
+
   done
 }
 
