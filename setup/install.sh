@@ -1,10 +1,18 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash 
+
+set -e
 
 reset='\e[0m'
 
 err() {
   err+="$(color 1)[!]${reset} $1
 "
+}
+
+err_now() {
+  err_now="$(color 1)[!]${reset} $1
+"
+  printf '%b\033[m' "$err_now"
 }
 
 color() {
@@ -41,11 +49,11 @@ get_args() {
 }
 
 make_temp_dir() {
-  temp_dir=$(mktemp -t zion-temp -d)
+  temp_dir=$(mktemp -t zion-temp.XXXXX -d)
 }
 
 get_kernel_name() {
-  kernel_name=$(uname -s)
+  kernel_name=$(uname -sr)
 
   if [[ $kernel_name == "Darwin" ]]; then
     darwin_name=$(sw_vers -productName)
@@ -59,7 +67,7 @@ get_os() {
   # $kernel_name is set in a function called get_kernel_name and is
   # just the output of "uname -s".
   case $kernel_name in
-    Darwin)   os=$darwin_name ;;
+    Darwin*)   os=$darwin_name ;;
     SunOS)    os=Solaris ;;
     Haiku)    os=Haiku ;;
     MINIX)    os=MINIX ;;
@@ -67,7 +75,7 @@ get_os() {
     IRIX*)    os=IRIX ;;
     FreeMiNT) os=FreeMiNT ;;
 
-    Linux|GNU*)
+    Linux*|GNU*)
       os=Linux
     ;;
 
@@ -86,6 +94,21 @@ get_os() {
 esac
 }
 
+get_base() {
+  case $os in 
+    "Linux")
+      for release_file in /etc/*-release; do
+        source $release_file
+        base=$ID_LIKE
+      done
+    ;;
+
+    "Mac OS X"|"macOS")
+      base="darwin"
+    ;;
+  esac
+}
+
 get_distro() {
   case $os in 
     "Linux")
@@ -102,7 +125,7 @@ get_distro() {
               -f /etc/openwrt_release || \
               -f /etc/lsb-release ]]; then
 
-        for flie in /etc/lsb-release /usr/lib/os-release \
+        for file in /etc/lsb-release /usr/lib/os-release \
                     /etc/os-release  /usr/openwrt_release; do
           source "$file" && break
         done
@@ -123,6 +146,8 @@ get_distro() {
     ;;
   esac
 
+  get_base
+
   [[ $distro ]] || distro="$os (Unknown)"
 }
 
@@ -133,13 +158,12 @@ get_arch() {
 install() {
   make_temp_dir
 
-  # TODO: check if element is alread installed
   case $os in
-    "Linux") # TODO: test
-      case $distro in
-        "Tails")
-          if !( dpkg -l | grep libsqlcipher0 &> /dev/null); then
-            err "libsqlcipher0 not installed, installing."
+    "Linux") 
+      case $base in
+        "debian")
+          if [ $( dpkg -W -f='${Status}' libsqlcipher0 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
+            err_now "libsqlcipher0 is not installed, installing."
             sudo apt install libsqlcipher0
           fi
 
@@ -147,12 +171,20 @@ install() {
                             | grep -Eo "_([0-9]).([0-9]|[1-9][0-9]).([0-9]|[1-9][0-9])_" \
                             | sort -Vr \
                             | head -n 1)
-          
+
           element_filename="element-desktop${element_version}amd64.deb"
-          wget https://packages.riot.im/debian/pool/main/e/element-desktop/$element_filename -P $temp_dir
-          element_download_dir="${temp_dir}/${element_filename}"
-          echo $element_download_dir
-          # TODO: finish installation
+          if [ $( dpkg -W -f='${Staus}' element-dekstop 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
+            err_now "element not installed or not updated, installing the newest version."
+
+            wget https://packages.element.io/debian/pool/main/e/element-desktop/$element_filename -P $temp_dir
+            element_download_dir="${temp_dir}/${element_filename}" 
+            echo "element temporary download directory: $element_download_dir"
+
+            sudo dpkg -i $element_download_dir
+
+          else
+            echo "element is installed"
+          fi
         ;;
       esac
     ;;
@@ -171,17 +203,19 @@ install() {
         mounted="true"
         element_mount_dir="/Volumes/${element_version}-universal/"
         cp -R $element_mount_dir/Element.app /Applications/
-      elif
+      else
         mounted="false"
-        err "Couldn't mount ${element_download_dir}. Aborting"
+        err_now "Couldnt mount ${element_download_dir}. Aborting"
         exit 1
       fi
     ;;
   esac
+
+  cleanup
 }
 
 cleanup() {
-  rm $element_download_dir
+  rm -rf $element_download_dir
   if [[ $mounted == "true" ]]; then
     hdiutil unmount $element_mound_dir
   fi
