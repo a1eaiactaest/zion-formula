@@ -53,7 +53,7 @@ make_temp_dir() {
 }
 
 get_kernel_name() {
-  kernel_name=$(uname -sr)
+  kernel_name=$(uname -s)
 
   if [[ $kernel_name == "Darwin" ]]; then
     darwin_name=$(sw_vers -productName)
@@ -64,6 +64,7 @@ get_kernel_name() {
 }
 
 get_os() {
+  get_kernel_name
   # $kernel_name is set in a function called get_kernel_name and is
   # just the output of "uname -s".
   case $kernel_name in
