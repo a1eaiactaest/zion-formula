@@ -30,7 +30,7 @@ Options:
   -v | --verbose    Display error messages. 
   -vv | --VERBOSE   Display a verbose log and report all executed commands.
                     Read:
-                    https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html#:~:text=they%20are%20read.-,%2Dx,-Print%20a%20trace
+                    https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html
 "
 exit 1
 }
