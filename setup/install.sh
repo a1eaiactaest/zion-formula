@@ -4,6 +4,14 @@ set -e
 
 reset='\e[0m'
 
+color() {
+  case $1 in
+    [0-6])    printf '%b\e[3%sm'   "$reset" "$1" ;;
+    7 | "fg") printf '\e[37m%b'    "$reset" ;;
+    *)        printf '\e[38;5;%bm' "$1" ;;
+  esac
+}
+
 err() {
   err+="$(color 1)[!]${reset} $1
 "
@@ -12,16 +20,14 @@ err() {
 err_now() {
   err_now="$(color 1)[!]${reset} $1
 "
-  printf '%b\033[m' "$err_now"
+  printf '%b\033[m' "$err_now" >&2
 }
 
-color() {
-  case $1 in
-    [0-6])    printf '%b\e[3%sm'   "$reset" "$1" ;;
-    7 | "fg") printf '\e[37m%b'    "$reset" ;;
-    *)        printf '\e[38;5;%bm' "$1" ;;
-  esac
+abort() {
+  err_now "$@"
+  exit 1
 }
+
 
 usage() { printf "%s" "\
 Usage: install.sh --option 
@@ -50,6 +56,54 @@ get_args() {
 
 make_temp_dir() {
   temp_dir=$(mktemp -t zion-temp.XXXXX -d)
+}
+
+have_sudo_access() {
+  if [[ ! -x "/usr/bin/sudo" ]]; then
+    return 1
+  fi
+
+  local -a SUDO=("/usr/bin/sudo")
+  if [[ -n "${SUDO_ASKPASS-}" ]]; then
+    SUDO+=("-A")
+  fi
+
+  if [[ -z "${HAVE_SUDO_ACCES-}" ]]; then
+    "${SUDO[@]}" -v && "${SUDO[@]}" -l mkdir &>/dev/null
+    HAVE_SUDO_ACCESS="$?"
+  fi
+
+  if [[ $os == "macOS" ]] && [[ "${HAVE_SUDO_ACCESS}" -ne 0 ]]; then
+    abort "Need sudo on macOS, user needes to be a system Administrator!"
+  fi
+}
+
+make_installation_dir() {
+  # creates ZION_PREFIX variable, which is where zion gateway binary will be installed
+  case $os in
+    "macOS"|"Mac OS X")
+      if have_sudo_access; then
+        if [[ $arch == "arm" ]]; then
+          ZION_PREFIX="/opt/zion"
+        else
+          ZION_PREFIX="/usr/local"
+        fi
+      fi
+    ;;
+    "Linux")
+      if have_sudo_access; then 
+        ZION_PREFIX="/opt/zion"
+      else
+        ZION_PREFIX="${HOME}/.zion"
+      fi
+    ;;
+  esac
+
+  if have_sudo_access; then
+    sudo mkdir -p $ZION_PREFIX
+  elif [[ $os == "Linux" ]] && [[ "${HAVE_SUDO_ACCESS}" -ne 0 ]]; then
+    mkdir -p $ZION_PREFIX
+  fi
 }
 
 get_kernel_name() {
@@ -187,6 +241,9 @@ install() {
             echo "element is installed"
           fi
         ;;
+        *)
+          err_now "Only Debian and macOS are supported, your base is ${base}."
+        ;;
       esac
     ;;
 
@@ -222,18 +279,32 @@ cleanup() {
   fi
 }
 
+print_info() {
+  echo "OS: ${os}"
+  echo "Kernel: ${kernel_name}"
+  echo "Distro: ${distro}"
+  echo "CPU architecture ${arch}"
+}
+
 main() {
-  get_kernel_name
+  get_args "$@"
+
   get_os
   get_distro
   get_arch
 
-  install
+  have_sudo_access
+
+  if [[ $verbose == "on" ]]; then  
+    print_info 
+  fi
+
+  #install
 
   [[ $verbose == "on" ]] && printf '%b\033[m' "$err" >&2
+
 
   return 0
 }
 
-verbose="on"
 main "$@"
