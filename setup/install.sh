@@ -2,6 +2,8 @@
 
 set -e
 
+trap ctrl_c INT
+
 reset='\e[0m'
 
 color() {
@@ -26,6 +28,11 @@ err_now() {
 abort() {
   err_now "$@"
   exit 1
+}
+
+ctrl_c() {
+  cleanup
+  abort "Captured ctrl-c, cleaning up and aborting."
 }
 
 
