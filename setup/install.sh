@@ -63,6 +63,7 @@ get_args() {
 
 make_temp_dir() {
   temp_dir=$(mktemp -t zion-temp.XXXXX -d)
+  printf "$(color 2)[*]${reset} Created temporary dir at ${temp_dir}\n"
 }
 
 have_sudo_access() {
@@ -222,9 +223,13 @@ install_element() {
       case $base in
         "debian")
           if [ $( dpkg -W -f='${Status}' libsqlcipher0 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
-            err_now "libsqlcipher0 is not installed, installing."
+            err_now "libsqlcipher0 is not installed."
             if have_sudo_access; then
+              printf "$(color 2)[*]${reset} Installing libsqlcipher0...\n"
               sudo apt install libsqlcipher0
+            else
+              err_now "You have to be in sudoers file in order to install libsqlcipher0. Skipping installing Element."
+              return 1
             fi
           fi
 
@@ -235,16 +240,17 @@ install_element() {
 
           element_filename="element-desktop${element_version}amd64.deb"
           if [ $( dpkg -W -f='${Staus}' element-dekstop 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
-            err_now "element not installed or not updated, installing the newest version."
+            err_now "Element not installed or not updated, installing the newest version."
 
             wget https://packages.element.io/debian/pool/main/e/element-desktop/$element_filename -P $temp_dir
             element_download_dir="${temp_dir}/${element_filename}" 
-            echo "element temporary download directory: $element_download_dir"
+            echo "Element temporary download directory: $element_download_dir"
 
+            printf "$(color 2)[*]${reset} Installing Element...\n"
             sudo dpkg -i $element_download_dir
-
+            
           else
-            echo "element is installed"
+            printf "$(color 2)[*]${reset} Element is already installed.\n"
           fi
         ;;
         *)
@@ -255,23 +261,15 @@ install_element() {
     ;;
 
     "Mac OS X"|"macOS")
-      element_version=$(curl -s https://packages.element.io/desktop/install/macos/ \
-                        | grep -Eo "Element-([0-9]).([0-9]|[1-9][0-9]).([0-9]|[1-9][0-9])" \
-                        | sort -Vr \
-                        | head -n 1)
-      element_filename="${element_version}-universal.dmg" 
-      wget https://packages.element.io/desktop/install/macos/$element_filename -P $temp_dir
-      element_download_dir="${temp_dir}/${element_filename}"
-
-      # mount .dmg file
-      if hdiutil attach $element_download_dir >/dev/null; then
-        mounted="true"
-        element_mount_dir="/Volumes/${element_version}-universal/"
-        cp -R $element_mount_dir/Element.app /Applications/
+      if [[ $(mdfind "kMDItemKind == 'Application'" | grep Element.app) -eq 0 ]]; then
+        if [[ -x $(command -v brew) ]]; then
+          brew install -q --cask element
+        else
+          err_now "homebrew is not installed, skipping..."
+          return 1
+        fi
       else
-        mounted="false"
-        err_now "Couldnt mount ${element_download_dir}. Aborting"
-        return 1
+        err_now "Element is already installed."
       fi
     ;;
     *)
@@ -293,6 +291,9 @@ install_zion() {
             err_now "tor is not installed, installing."
             if have_sudo_access; then
               sudo apt install tor
+            else
+              err_now "No sudo access. Aborting"
+              abort
             fi
           fi
         ;;
@@ -318,22 +319,24 @@ install_zion() {
   tor_PID=$! # this doesn't work no ones know why
   printf "$(color 2)[*]${reset} Starting tor service... (${tor_PID})\n" && sleep 2
 
-  printf "$(color 2)[*]${reset} Temporarily installing into $temp_dir\n"
+  printf "$(color 2)[*]${reset} Temporarily downloading zion-gateway into $temp_dir\n"
 
   curl -s --socks5-hostname 127.0.0.1:9050 $zion_url > $temp_dir/gateway.zip
 
   if [[ "$?" -eq 0 ]] && [[ -f "${temp_dir}/gateway.zip" ]] ; then
-    printf "$(color 2)[*]${reset} Sucessfully downloaded gateway.zip file, installing... \n"
+    printf "$(color 2)[*]${reset} Sucessfully downloaded gateway.zip file, extracting... \n"
   else
     cleanup
-    abort "Error occured installing gateway.zip file, aborting."
+    abort "Error occured downloading gateway.zip file, aborting."
   fi
 
   downloaded_zip_sum=$(shasum -a 256 ${temp_dir}/gateway.zip | cut -d" " -f 1)
 
+  printf "$(color 2)[*]${reset} Verifying checksums...\n"
   if [ $zion_zip_sum == $downloaded_zip_sum ]; then
     cd ${temp_dir}
     unzip gateway.zip
+    printf "$(color 2)[*]${reset} Building...\n"
     go mod download
     go build zion-gateway.go
 
