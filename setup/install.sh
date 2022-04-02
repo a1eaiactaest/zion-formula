@@ -347,13 +347,22 @@ install_zion() {
 
   printf "$(color 2)[*]${reset} Verifying checksums...\n"
   if [ $zion_zip_sum == $downloaded_zip_sum ]; then
-    cd ${temp_dir}
-    unzip gateway.zip
-    printf "$(color 2)[*]${reset} Building...\n"
-    go mod download
-    go build zion-gateway.go
-
     printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 2)${downloaded_zip_sum}${reset}\n"
+
+    cd ${temp_dir}
+    printf "$(color 2)[*]${reset} Installing...\n"
+    sudo unzip -d $ZION_PREFIX gateway.zip
+    printf "$(color 2)[*]${reset} Building...\n"
+    
+    cd $ZION_PREFIX
+    sudo go mod download
+    sudo go build zion-gateway.go
+    if [[ -x "${ZION_PREFIX}/zion-gateway" ]]; then
+      printf "$(color 2)[*]${reset} Installation at ${ZION_PREFIX} successful. \n"
+    else
+      sudo chmod gu+x $ZION_PREFIX/zion-gateway
+    fi
+
   else
     printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 1)${downloaded_zip_sum}${reset}\n"
     cleanup
