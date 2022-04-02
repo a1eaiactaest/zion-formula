@@ -143,10 +143,13 @@ get_os() {
     ;;
 
     *)
-      printf '%s\n' "Unknown OS detected: '$kernel_name', aborting..." >&2
-      exit 1
+      abort "Unknown OS detected: '$kernel_name', aborting..."
     ;;
 esac
+
+  if [[ $os != "Linux" ]] && [[ $os != "macOS" ]]; then
+    abort "Only Linux and macOS are supported. Your current system is ${os}"
+  fi
 }
 
 get_base() {
@@ -192,10 +195,6 @@ get_distro() {
       fi
     ;;
 
-    "Windows")
-      distro=$(wmic os get Caption)
-    ;;
-
     "Mac OS X"|"macOS")
       distro="${osx_version}"
     ;;
@@ -210,16 +209,16 @@ get_arch() {
   arch=$(uname -p)
 }
 
-install() {
-  make_temp_dir
-
+install_element() {
   case $os in
     "Linux") 
       case $base in
         "debian")
           if [ $( dpkg -W -f='${Status}' libsqlcipher0 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
             err_now "libsqlcipher0 is not installed, installing."
-            sudo apt install libsqlcipher0
+            if have_sudo_access; then
+              sudo apt install libsqlcipher0
+            fi
           fi
 
           element_version=$(curl -s https://packages.element.io/debian/pool/main/e/element-desktop/ \
@@ -243,6 +242,7 @@ install() {
         ;;
         *)
           err_now "Only Debian and macOS are supported, your base is ${base}."
+          return 1
         ;;
       esac
     ;;
@@ -264,19 +264,114 @@ install() {
       else
         mounted="false"
         err_now "Couldnt mount ${element_download_dir}. Aborting"
-        exit 1
+        return 1
       fi
+    ;;
+    *)
+      err_now "Only Linux and macOS are supported, your OS is ${os}."
     ;;
   esac
 
+}
+
+install_zion() {
+  zion_url="http://zion244k2d5snr6uao5mxukpacqbr4z25oaji5kegjw43ypd72pri3qd.onion/gateway.zip"
+  zion_zip_sum="d30a420147346c76641e6ca6843dbcba31b70ff97315235130615d690b23c7ec"
+
+  case $os in
+    "Linux")
+      case $base in
+        "debian")
+          if [[ $( dpkg -W -f='${Status}' tor 2>/dev/null | grep -c "ok installed") -eq 0 ]]; then
+            err_now "tor is not installed, installing."
+            if have_sudo_access; then
+              sudo apt install tor
+            fi
+          fi
+        ;;
+      esac
+    ;;
+    "macOS"|"Mac OS X")
+      if ! [[ -x "$(command -v tor)" ]]; then
+        err_now "tor service not installed, installing"
+        if ! [[ -x "$(command -v brew)" ]]; then
+          brew install -q tor
+        else
+          abort "homebrew is not installed"
+        fi
+      fi
+    ;;
+    *)
+      abort "Only Linux and macOS are supported, your OS is ${os}."
+    ;;
+  esac
+
+  # start tor in order to use socks5 proxy on port 9050
+  tor --quiet &
+  tor_PID=$! # this doesn't work no ones know why
+  printf "$(color 2)[*]${reset} Starting tor service... \n" && sleep 2
+
+  echo $temp_dir
+
+  curl -s --socks5-hostname 127.0.0.1:9050 $zion_url > $temp_dir/gateway.zip
+
+  if [[ "$?" -eq 0 ]] && [[ -f "${temp_dir}/gateway.zip" ]] ; then
+    printf "$(color 2)[*]${reset} Sucessfully downloaded gateway.zip file, installing... \n"
+  else
+    cleanup
+    abort "Error occured installing gateway.zip file, aborting."
+  fi
+
+  kill $tor_PID
+
+
+  downloaded_zip_sum=$(shasum -a 256 ${temp_dir}/gateway.zip | cut -d" " -f 1)
+
+  if [ $zion_zip_sum == $downloaded_zip_sum ]; then
+    cd ${temp_dir}
+    unzip gateway.zip
+    go mod download
+    go build zion-gateway.go
+
+    printf "Expected: $(color 2)${zion_zip_sum}${reset}
+    Current: $(color 1)${downloaded_zip_sum}${reset}"
+  else
+    cleanup
+    abort "Checksum error."
+  fi 
+
+}
+
+install() {
+  make_temp_dir
+  make_installation_dir
+  
+  read -p 'Install element? [y/N] ' -r -n 1 install_element 
+  echo ""
+  if [[ $install_element =~ ^[Yy]$ ]]; then
+    install_element
+  fi
+
+  install_zion
+  
   cleanup
 }
 
 cleanup() {
-  rm -rf $element_download_dir
-  if [[ $mounted == "true" ]]; then
-    hdiutil unmount $element_mound_dir
+  if [[ $install_element =~ ^[Yy]$ ]]; then
+    rm -rf $element_download_dir
+    if [[ $mounted == "true" ]]; then
+      hdiutil unmount $element_mound_dir
+    fi
   fi
+
+  rm -rf $temp_dir
+
+  if [[ -z "$(ls -A ${ZION_PREFIX})" ]]; then
+    rm -rf $ZION_PREFIX
+  fi
+
+  kill $tor_PID
 }
 
 print_info() {
@@ -299,10 +394,10 @@ main() {
     print_info 
   fi
 
-  #install
+  install
 
+  printf "$(color 2)[*]${reset} Starting tor service... \n" && sleep 2
   [[ $verbose == "on" ]] && printf '%b\033[m' "$err" >&2
-
 
   return 0
 }
