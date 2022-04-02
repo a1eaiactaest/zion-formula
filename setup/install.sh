@@ -316,9 +316,9 @@ install_zion() {
   # start tor in order to use socks5 proxy on port 9050
   tor --quiet &
   tor_PID=$! # this doesn't work no ones know why
-  printf "$(color 2)[*]${reset} Starting tor service... \n" && sleep 2
+  printf "$(color 2)[*]${reset} Starting tor service... (${tor_PID})\n" && sleep 2
 
-  echo $temp_dir
+  printf "$(color 2)[*]${reset} Temporarily installing into $temp_dir\n"
 
   curl -s --socks5-hostname 127.0.0.1:9050 $zion_url > $temp_dir/gateway.zip
 
@@ -329,9 +329,6 @@ install_zion() {
     abort "Error occured installing gateway.zip file, aborting."
   fi
 
-  kill $tor_PID
-
-
   downloaded_zip_sum=$(shasum -a 256 ${temp_dir}/gateway.zip | cut -d" " -f 1)
 
   if [ $zion_zip_sum == $downloaded_zip_sum ]; then
@@ -340,9 +337,9 @@ install_zion() {
     go mod download
     go build zion-gateway.go
 
-    printf "Expected: $(color 2)${zion_zip_sum}${reset}
-    Current: $(color 1)${downloaded_zip_sum}${reset}"
+    printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 2)${downloaded_zip_sum}${reset}\n"
   else
+    printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 1)${downloaded_zip_sum}${reset}\n"
     cleanup
     abort "Checksum error."
   fi 
@@ -365,6 +362,12 @@ install() {
 }
 
 cleanup() {
+  printf "$(color 2)[*]${reset} Cleaning up..\n"
+  rm -rf "${temp_dir}"
+  
+  printf "$(color 2)[*]${reset} Stopping tor service... (${tor_PID})\n"
+  kill $tor_PID
+
   if [[ $install_element =~ ^[Yy]$ ]]; then
     rm -rf $element_download_dir
     if [[ $mounted == "true" ]]; then
@@ -372,20 +375,18 @@ cleanup() {
     fi
   fi
 
-  rm -rf $temp_dir
-
   if [[ -z "$(ls -A ${ZION_PREFIX})" ]]; then
-    rm -rf $ZION_PREFIX
+    sudo rm -rf $ZION_PREFIX
   fi
-
-  kill $tor_PID
 }
 
 print_info() {
+  printf "$(color 2)[*]${reset} System info:\n"
   echo "OS: ${os}"
   echo "Kernel: ${kernel_name}"
   echo "Distro: ${distro}"
-  echo "CPU architecture ${arch}"
+  echo "Base: ${base}"
+  echo "CPU: ${arch}"
 }
 
 main() {
@@ -403,7 +404,6 @@ main() {
 
   install
 
-  printf "$(color 2)[*]${reset} Starting tor service... \n" && sleep 2
   [[ $verbose == "on" ]] && printf '%b\033[m' "$err" >&2
 
   return 0
