@@ -108,9 +108,9 @@ make_installation_dir() {
   esac
 
   if have_sudo_access; then
-    sudo mkdir -p $ZION_PREFIX
+    sudo mkdir -p $ZION_PREFIX/bin
   elif [[ $os == "Linux" ]] && [[ "${HAVE_SUDO_ACCESS}" -ne 0 ]]; then
-    mkdir -p $ZION_PREFIX
+    mkdir -p $ZION_PREFIX/bin
   fi
 }
 
@@ -361,12 +361,14 @@ install_zion() {
       
       cd $ZION_PREFIX
       sudo go mod download
-      sudo go build zion-gateway.go
-      if [[ -x "${ZION_PREFIX}/zion-gateway" ]]; then
+      sudo go build -o bin/zion-gateway zion-gateway.go
+      if [[ -x "${ZION_PREFIX}/bin/zion-gateway" ]]; then
         printf "$(color 2)[*]${reset} Installation at ${ZION_PREFIX} successful. \n"
       else
-        sudo chmod gu+x $ZION_PREFIX/zion-gateway
+        sudo chmod gu+x $ZION_PREFIX/bin/zion-gateway
       fi
+
+
 
     else
       printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 1)${downloaded_zip_sum}${reset}\n"
