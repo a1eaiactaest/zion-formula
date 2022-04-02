@@ -296,17 +296,30 @@ install_zion() {
               abort
             fi
           fi
+          if [[ $( dpkg -W -f='${Status}' golang-go 2>/dev/null | grep -c "ok installed") -eq 0 ]]; then
+            err_now "golang is not installed, installing."
+            if have_sudo_access; then
+              sudo apt install golang-go
+            else
+              abort "No sudo access. Aborting"
+            fi
+          fi
         ;;
       esac
     ;;
     "macOS"|"Mac OS X")
-      if ! [[ -x "$(command -v tor)" ]]; then
-        err_now "tor service not installed, installing"
-        if [[ -x "$(command -v brew)" ]]; then
+      if [[ -x "$(command -v brew)" ]]; then
+        if ! [[ -x "$(command -v tor)" ]]; then
+          err_now "tor service not installed, installing"
           brew install -q tor
-        else
-          abort "homebrew is not installed"
         fi
+
+        if ! [[ -x "$(command -v go)" ]]; then
+          err_now "golang is not installed, installing"
+          brew install go
+        fi
+      else
+        abort "homebrew is not installed"
       fi
     ;;
     *)
