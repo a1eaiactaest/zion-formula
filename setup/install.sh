@@ -301,7 +301,7 @@ install_zion() {
     "macOS"|"Mac OS X")
       if ! [[ -x "$(command -v tor)" ]]; then
         err_now "tor service not installed, installing"
-        if ! [[ -x "$(command -v brew)" ]]; then
+        if [[ -x "$(command -v brew)" ]]; then
           brew install -q tor
         else
           abort "homebrew is not installed"
