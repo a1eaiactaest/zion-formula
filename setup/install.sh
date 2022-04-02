@@ -371,13 +371,6 @@ cleanup() {
   printf "$(color 2)[*]${reset} Stopping tor service... (${tor_PID})\n"
   kill $tor_PID
 
-  if [[ $install_element =~ ^[Yy]$ ]]; then
-    rm -rf $element_download_dir
-    if [[ $mounted == "true" ]]; then
-      hdiutil unmount $element_mound_dir
-    fi
-  fi
-
   if [[ -z "$(ls -A ${ZION_PREFIX})" ]]; then
     sudo rm -rf $ZION_PREFIX
   fi
