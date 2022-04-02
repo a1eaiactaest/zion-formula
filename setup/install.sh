@@ -1,6 +1,6 @@
 #!/usr/bin/env bash 
 
-set -e
+#set -e
 
 trap ctrl_c INT
 
@@ -332,43 +332,51 @@ install_zion() {
   tor_PID=$! # this doesn't work no ones know why
   printf "$(color 2)[*]${reset} Starting tor service... (${tor_PID})\n" && sleep 2
 
-  printf "$(color 2)[*]${reset} Temporarily downloading zion-gateway into $temp_dir\n"
+  
+  curl -s --socks5-hostname 127.0.0.1:9050 $zion_url >/dev/null
+  exit_code=$?
 
-  curl -s --socks5-hostname 127.0.0.1:9050 $zion_url > $temp_dir/gateway.zip
+  if [[ $exit_code -eq 0 ]]; then 
+    printf "$(color 2)[*]${reset} Temporarily downloading zion-gateway into $temp_dir\n"
 
-  if [[ "$?" -eq 0 ]] && [[ -f "${temp_dir}/gateway.zip" ]] ; then
-    printf "$(color 2)[*]${reset} Sucessfully downloaded gateway.zip file, extracting... \n"
-  else
-    cleanup
-    abort "Error occured downloading gateway.zip file, aborting."
-  fi
+    curl -s --socks5-hostname 127.0.0.1:9050 $zion_url > $temp_dir/gateway.zip
 
-  downloaded_zip_sum=$(shasum -a 256 ${temp_dir}/gateway.zip | cut -d" " -f 1)
-
-  printf "$(color 2)[*]${reset} Verifying checksums...\n"
-  if [ $zion_zip_sum == $downloaded_zip_sum ]; then
-    printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 2)${downloaded_zip_sum}${reset}\n"
-
-    cd ${temp_dir}
-    printf "$(color 2)[*]${reset} Installing...\n"
-    sudo unzip -d $ZION_PREFIX gateway.zip
-    printf "$(color 2)[*]${reset} Building...\n"
-    
-    cd $ZION_PREFIX
-    sudo go mod download
-    sudo go build zion-gateway.go
-    if [[ -x "${ZION_PREFIX}/zion-gateway" ]]; then
-      printf "$(color 2)[*]${reset} Installation at ${ZION_PREFIX} successful. \n"
+    if [[ "$?" -eq 0 ]] && [[ -f "${temp_dir}/gateway.zip" ]] ; then
+      printf "$(color 2)[*]${reset} Sucessfully downloaded gateway.zip file, extracting... \n"
     else
-      sudo chmod gu+x $ZION_PREFIX/zion-gateway
+      cleanup
+      abort "Error occured downloading gateway.zip file, aborting."
     fi
 
-  else
-    printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 1)${downloaded_zip_sum}${reset}\n"
-    cleanup
-    abort "Checksum error."
-  fi 
+    downloaded_zip_sum=$(shasum -a 256 ${temp_dir}/gateway.zip | cut -d" " -f 1)
 
+    printf "$(color 2)[*]${reset} Verifying checksums...\n"
+    if [ $zion_zip_sum == $downloaded_zip_sum ]; then
+      printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 2)${downloaded_zip_sum}${reset}\n"
+
+      cd ${temp_dir}
+      printf "$(color 2)[*]${reset} Installing...\n"
+      sudo unzip -d $ZION_PREFIX gateway.zip
+      printf "$(color 2)[*]${reset} Building...\n"
+      
+      cd $ZION_PREFIX
+      sudo go mod download
+      sudo go build zion-gateway.go
+      if [[ -x "${ZION_PREFIX}/zion-gateway" ]]; then
+        printf "$(color 2)[*]${reset} Installation at ${ZION_PREFIX} successful. \n"
+      else
+        sudo chmod gu+x $ZION_PREFIX/zion-gateway
+      fi
+
+    else
+      printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 1)${downloaded_zip_sum}${reset}\n"
+      cleanup
+      abort "Checksum error."
+    fi 
+  else
+    cleanup
+    abort "Remote host seems down, make sure Zion Project .onion site is up! Aborting."
+  fi
 }
 
 install() {
