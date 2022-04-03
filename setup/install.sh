@@ -329,10 +329,9 @@ install_zion() {
 
   # start tor in order to use socks5 proxy on port 9050
   tor --quiet &
-  tor_PID=$! # this doesn't work no ones know why
+  tor_PID=$!
   printf "$(color 2)[*]${reset} Starting tor service... (${tor_PID})\n" && sleep 2
 
-  
   curl -s --socks5-hostname 127.0.0.1:9050 $zion_url >/dev/null
   exit_code=$?
 
@@ -369,7 +368,9 @@ install_zion() {
       fi
 
 
-
+      printf "$(color 2)[*]${reset} Installation complete, read more about Zion here: https://nullby1e.github.io/zion/\n"
+      printf "$(color 2)[*]${reset} Make sure to add $ZION_PREFIX/bin to \$PATH.\n"
+      printf "$(color 2)[*]${reset} Happy Hacking!\n"
     else
       printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 1)${downloaded_zip_sum}${reset}\n"
       cleanup
