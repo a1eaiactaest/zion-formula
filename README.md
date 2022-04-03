@@ -1,4 +1,4 @@
-# Zion Installator
+# Zion Installer
 
 This used to be a formula for homebrew, but their requirements are very strict.  
 
