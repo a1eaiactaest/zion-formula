@@ -226,7 +226,7 @@ install_element() {
             err_now "libsqlcipher0 is not installed."
             if have_sudo_access; then
               printf "$(color 2)[*]${reset} Installing libsqlcipher0...\n"
-              sudo apt install libsqlcipher0
+              sudo apt -y install libsqlcipher0
             else
               err_now "You have to be in sudoers file in order to install libsqlcipher0. Skipping installing Element."
               return 1
@@ -290,7 +290,7 @@ install_zion() {
           if [[ $( dpkg -W -f='${Status}' tor 2>/dev/null | grep -c "ok installed") -eq 0 ]]; then
             err_now "tor is not installed, installing."
             if have_sudo_access; then
-              sudo apt install tor
+              sudo apt -y install tor
             else
               err_now "No sudo access. Aborting"
               abort
@@ -299,7 +299,7 @@ install_zion() {
           if [[ $( dpkg -W -f='${Status}' golang-go 2>/dev/null | grep -c "ok installed") -eq 0 ]]; then
             err_now "golang is not installed, installing."
             if have_sudo_access; then
-              sudo apt install golang-go
+              sudo apt -y install golang-go
             else
               abort "No sudo access. Aborting"
             fi
@@ -330,56 +330,63 @@ install_zion() {
   # start tor in order to use socks5 proxy on port 9050
   tor --quiet &
   tor_PID=$!
-  printf "$(color 2)[*]${reset} Starting tor service... (${tor_PID})\n" && sleep 2
+  printf "$(color 2)[*]${reset} Starting tor service... (${tor_PID})\n" && sleep 5
 
-  curl -s --socks5-hostname 127.0.0.1:9050 $zion_url >/dev/null
-  exit_code=$?
+  # check if tor is running
+  if [[ -n $(ps -o pid= -p $tor_PID) ]]; then
+    curl -s --socks5-hostname 127.0.0.1:9050 $zion_url >/dev/null
+    exit_code=$?
 
-  if [[ $exit_code -eq 0 ]]; then 
-    printf "$(color 2)[*]${reset} Temporarily downloading zion-gateway into $temp_dir\n"
+    if [[ $exit_code -eq 0 ]]; then 
+      printf "$(color 2)[*]${reset} Temporarily downloading zion-gateway into $temp_dir\n"
 
-    curl -s --socks5-hostname 127.0.0.1:9050 $zion_url > $temp_dir/gateway.zip
+      curl -s --socks5-hostname 127.0.0.1:9050 $zion_url > $temp_dir/gateway.zip
 
-    if [[ "$?" -eq 0 ]] && [[ -f "${temp_dir}/gateway.zip" ]] ; then
-      printf "$(color 2)[*]${reset} Sucessfully downloaded gateway.zip file, extracting... \n"
-    else
-      cleanup
-      abort "Error occured downloading gateway.zip file, aborting."
-    fi
-
-    downloaded_zip_sum=$(shasum -a 256 ${temp_dir}/gateway.zip | cut -d" " -f 1)
-
-    printf "$(color 2)[*]${reset} Verifying checksums...\n"
-    if [ $zion_zip_sum == $downloaded_zip_sum ]; then
-      printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 2)${downloaded_zip_sum}${reset}\n"
-
-      cd ${temp_dir}
-      printf "$(color 2)[*]${reset} Installing...\n"
-      sudo unzip -d $ZION_PREFIX gateway.zip
-      printf "$(color 2)[*]${reset} Building...\n"
-      
-      cd $ZION_PREFIX
-      sudo go mod download
-      sudo go build -o bin/zion-gateway zion-gateway.go
-      if [[ -x "${ZION_PREFIX}/bin/zion-gateway" ]]; then
-        printf "$(color 2)[*]${reset} Installation at ${ZION_PREFIX} successful. \n"
+      if [[ "$?" -eq 0 ]] && [[ -f "${temp_dir}/gateway.zip" ]] ; then
+        printf "$(color 2)[*]${reset} Sucessfully downloaded gateway.zip file, extracting... \n"
       else
-        sudo chmod gu+x $ZION_PREFIX/bin/zion-gateway
+        cleanup
+        abort "Error occured downloading gateway.zip file, aborting."
       fi
 
+      downloaded_zip_sum=$(shasum -a 256 ${temp_dir}/gateway.zip | cut -d" " -f 1)
 
-      printf "$(color 2)[*]${reset} Installation complete, read more about Zion here: https://nullby1e.github.io/zion/\n"
-      printf "$(color 2)[*]${reset} Make sure to add $ZION_PREFIX/bin to \$PATH.\n"
-      printf "$(color 2)[*]${reset} Happy Hacking!\n"
+      printf "$(color 2)[*]${reset} Verifying checksums...\n"
+      if [ $zion_zip_sum == $downloaded_zip_sum ]; then
+        printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 2)${downloaded_zip_sum}${reset}\n"
+
+        cd ${temp_dir}
+        printf "$(color 2)[*]${reset} Installing...\n"
+        sudo unzip -d $ZION_PREFIX gateway.zip
+        printf "$(color 2)[*]${reset} Building...\n"
+        
+        cd $ZION_PREFIX
+        sudo go mod download
+        sudo go build -o bin/zion-gateway zion-gateway.go
+        if [[ -x "${ZION_PREFIX}/bin/zion-gateway" ]]; then
+          printf "$(color 2)[*]${reset} Installation at ${ZION_PREFIX} successful. \n"
+        else
+          sudo chmod gu+x $ZION_PREFIX/bin/zion-gateway
+        fi
+
+
+        printf "$(color 2)[*]${reset} Installation complete, read more about Zion here: https://nullby1e.github.io/zion/\n"
+        printf "$(color 2)[*]${reset} Make sure to add $ZION_PREFIX/bin to \$PATH.\n"
+        printf "$(color 2)[*]${reset} Happy Hacking!\n"
+      else
+        printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 1)${downloaded_zip_sum}${reset}\n"
+        cleanup
+        abort "Checksum error."
+      fi 
     else
-      printf "Expected: $(color 2)${zion_zip_sum}${reset} \nCurrent:  $(color 1)${downloaded_zip_sum}${reset}\n"
       cleanup
-      abort "Checksum error."
-    fi 
+      abort "Remote host seems down, make sure Zion Project .onion site is up! Aborting."
+    fi
   else
     cleanup
-    abort "Remote host seems down, make sure Zion Project .onion site is up! Aborting."
+    abort "Tor service failed. Aborting"
   fi
+
 }
 
 install() {
@@ -402,7 +409,8 @@ cleanup() {
   rm -rf "${temp_dir}"
   
   printf "$(color 2)[*]${reset} Stopping tor service... (${tor_PID})\n"
-  kill $tor_PID
+  kill -9 $tor_PID 
+  wait $tor_PID 2>/dev/null
 
   if [[ -z "$(ls -A ${ZION_PREFIX})" ]]; then
     sudo rm -rf $ZION_PREFIX
