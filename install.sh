@@ -287,7 +287,7 @@ install_zion() {
     "Linux")
       case $base in
         "debian")
-          if [[ $( dpkg -W -f='${Status}' tor 2>/dev/null | grep -c "ok installed") -eq 0 ]]; then
+          if [[ $( dpkg -s tor 2>/dev/null | grep -c "ok installed") -eq 0 ]]; then
             err_now "tor is not installed, installing."
             if have_sudo_access; then
               sudo apt -y install tor
@@ -296,7 +296,7 @@ install_zion() {
               abort
             fi
           fi
-          if [[ $( dpkg -W -f='${Status}' golang-go 2>/dev/null | grep -c "ok installed") -eq 0 ]]; then
+          if [[ $( dpkg -s golang-go 2>/dev/null | grep -c "ok installed") -eq 0 ]]; then
             err_now "golang is not installed, installing."
             if have_sudo_access; then
               sudo apt -y install golang-go
@@ -316,7 +316,7 @@ install_zion() {
 
         if ! [[ -x "$(command -v go)" ]]; then
           err_now "golang is not installed, installing"
-          brew install go
+          brew install -q go
         fi
       else
         abort "homebrew is not installed"
