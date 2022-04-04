@@ -76,7 +76,7 @@ have_sudo_access() {
     SUDO+=("-A")
   fi
 
-  if [[ -z "${HAVE_SUDO_ACCES-}" ]]; then
+  if [[ -z "${HAVE_SUDO_ACCESS-}" ]]; then
     "${SUDO[@]}" -v && "${SUDO[@]}" -l mkdir &>/dev/null
     HAVE_SUDO_ACCESS="$?"
   fi
