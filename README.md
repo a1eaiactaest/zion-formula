@@ -4,6 +4,9 @@ This used to be a formula for homebrew, but their requirements are very strict.
 
 Decided to make my own installation script. Check out [install.sh](./install.sh)!
 
+[public](https://nullby1te.github.io/zion)
+[http://zion244k2d5snr6uao5mxukpacqbr4z25oaji5kegjw43ypd72pri3qd.onion]()
+
 ## Deps
 
 * libsqlicipher0 (Linux)
